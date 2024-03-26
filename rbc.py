@@ -15,7 +15,7 @@ class DedalusRBC_Env(gym.Env):
     metadata = {'render_modes' : 'human'}
     obs_metadata = {"Ni" : 30, "Nk" : 8 }
     sim_metadata = {"Lx" : np.pi, "Lz" : 1.0, "Ra" : 1e4, "Ni" : 100, "Nk" : 64, "DiscardTime" : 80}
-    act_metadata = {"actionDuration" : 1.5, "actionsPerEp" : 200}
+    act_metadata = {"actionDuration" : 1.5, "actionsPerEp" : 256}
     
     def __init__(self, render_mode=None):
         self.observation_space = gym.spaces.Box(-0.5, 1.5, shape=(self.obs_metadata['Nk']*self.obs_metadata['Ni'],))
@@ -46,8 +46,7 @@ class DedalusRBC_Env(gym.Env):
         return obs, reward, term, trun, info
 
     def _computeReward(self):
-        return -(self.fp.max('Nu') - self.Nu0)
-        
+        return -(np.average(self.fp.properties['Nu']['g'].flatten()[-5:]) - self.Nu0)
 
     def _extractObs(self):
         x=np.linspace(0, self.sim_metadata['Lx'], self.obs_metadata['Ni']+1)
@@ -70,7 +69,7 @@ class DedalusRBC_Env(gym.Env):
         Tp = action - np.mean(action)
 
         for j in range(len(Tp)):
-            Tp[j] /= max(1., Tp[j])/0.75
+            Tp[j] /= max(1., abs(Tp[j])/0.25)
 
         Tp = np.repeat(Tp, 3)
         
@@ -92,8 +91,8 @@ class DedalusRBC_Env(gym.Env):
             if self.solver.sim_time >= self.sim_metadata['DiscardTime']:
                 break
 
-        #get initial Nu for normalisation
-        self.Nu0 = self.fp.max('Nu')
+        #get initial Nu for normalisation based on top of domain
+        self.Nu0 = np.average(self.fp.properties['Nu']['g'].flatten()[-5:])
         
     
     def _D3_RBC_setup(self, seed):
@@ -159,7 +158,7 @@ class DedalusRBC_Env(gym.Env):
         solver.stop_sim_time = stop_sim_time
 
         fp = d3.GlobalFlowProperty(solver)
-        fp.add_property(d3.Average(d3.Average((ez@u)*b, 'x') - kappa*d3.Differentiate(d3.Average(b, 'x'), coords[1]), 'z')/kappa, name='Nu')
+        fp.add_property((d3.Average((ez@u)*b, 'x') - kappa*d3.Differentiate(d3.Average(b, 'x'), coords[1]))/kappa, name='Nu')
             
         # Initial conditions
         b.fill_random('g', seed=seed, distribution='normal', scale=1e-3) # Random noise
@@ -191,7 +190,7 @@ def main(argv):
 
 
     env = make_vec_env(DedalusRBC_Env, n_envs=30, seed=0, vec_env_cls=SubprocVecEnv)
-    model = PPO("MlpPolicy", env, verbose=1, n_steps=32)
+    model = PPO("MlpPolicy", env, verbose=1, n_steps=256, policy_kwargs=dict(net_arch=[512, 512]), learning_rate=1e-3, ent_coef=0.01)
 
     model.learn(total_timesteps=2000000, callback=checkpoint_callback)
     model.save("ppo_rbc")
