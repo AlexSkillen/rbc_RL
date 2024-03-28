@@ -7,7 +7,7 @@ class DedalusRBC_Env(gym.Env):
     metadata = {'render_modes' : 'human'}
     obs_metadata = {"Ni" : 30, "Nk" : 8 }
     sim_metadata = {"Lx" : np.pi, "Lz" : 1.0, "Ra" : 1e4, "Pr" : 0.71, "Ni" : 100, "Nk" : 64, "DiscardTime" : 80}
-    act_metadata = {"actionDuration" : 1.5, "actionsPerEp" : 256, "magPenFactor" : 0.0}
+    act_metadata = {"actionDuration" : 1.5, "actionsPerEp" : 256, "magPenFactor" : 0.1}
     
     def __init__(self, render_mode=None):
         self.observation_space = gym.spaces.Box(-0.5, 1.5, shape=(self.obs_metadata['Nk']*self.obs_metadata['Ni'],))
