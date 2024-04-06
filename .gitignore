@@ -1,0 +1,6 @@
+*.btr
+figs
+log*
+__pycache__
+.venv
+.ipynb_checkpoints
