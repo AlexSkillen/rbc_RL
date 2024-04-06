@@ -17,8 +17,8 @@ class DedalusRBC_Env(ParallelEnv):
             nagents=10,
             actionsPerEp=256,
             actionDuration=1.5,
-            magPenFactor=0.1,
-            DiscardTime=50,
+            magPenFactor=0.,
+            DiscardTime=100,
             Ni=100,
             Nk=64,
             ObsNi=30,
@@ -51,7 +51,7 @@ class DedalusRBC_Env(ParallelEnv):
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent):
-        return gym.spaces.Box(-0.5, 1.5, shape=(self.ObsNk*self.ObsNi,))
+        return gym.spaces.Box(-0.5, 1.8, shape=(self.ObsNk*self.ObsNi,))
 
     @functools.lru_cache(maxsize=None)
     def action_space(self, agent):
@@ -76,7 +76,7 @@ class DedalusRBC_Env(ParallelEnv):
 
         observations = {agent: self._extractObs( agent ) for agent in self.agents}
         infos = {agent: {} for agent in self.agents}
-        rewards = {agent: self._computeReward( actions ) for agent in self.agents}
+        rewards = self._computeReward( actions ) 
         truncations = {agent: not self.solver.proceed for agent in self.agents}
         terminations = {agent: False for agent in self.agents}
 
@@ -91,10 +91,12 @@ class DedalusRBC_Env(ParallelEnv):
     def _computeReward(self, actions):
         #extract as array
         action = np.array(list(actions.values()))
-        
-        mainReward = -(np.average(self.fp.properties['Nu']['g'].flatten()[-5:]) - self.Nu0)
-        mag_pen    = -self.magPenFactor*np.average(np.absolute(action))
-        return mainReward + mag_pen
+        r = np.zeros_like(action)
+        r -= (np.average(self.fp.properties['Nu']['g'].flatten()[-5:]) - self.Nu0)
+        r -= self.magPenFactor*np.absolute(action)
+
+        r_dict = {agent: float(r[i]) for i, agent in enumerate(self.agents)}
+        return r_dict
         
     def _setBC(self, actions):
         #extract as array
@@ -135,7 +137,7 @@ class DedalusRBC_Env(ParallelEnv):
                 if xp>self.Lx:
                     xp -= self.Lx
                 obs[k][i] = np.squeeze(self.problem.variables[1](x=xp, z=Z[k][i]).evaluate()['g'])
-        
+       
         return obs.flatten()
     
     def _D3_RBC_setup(self, seed):

@@ -24,8 +24,8 @@ if __name__ == "__main__":
             PPOConfig()
             .environment(env=env_name)
             .rollouts(
-                num_rollout_workers=4, 
-                rollout_fragment_length=64,
+                num_rollout_workers=30, 
+                rollout_fragment_length="auto",
                 batch_mode="complete_episodes"
             )
             .training(
@@ -36,7 +36,7 @@ if __name__ == "__main__":
                 use_gae=False,
                 clip_param=0.4,
                 grad_clip=None,
-                entropy_coeff=0.1,
+                entropy_coeff=0.01,
                 vf_loss_coeff=0.25,
                 sgd_minibatch_size=64,
                 num_sgd_iter=10,
